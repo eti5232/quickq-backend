@@ -1,0 +1,238 @@
+// QuickQ - Prisma schema
+// מסד נתונים: PostgreSQL
+// כל הזמנים (DateTime) נשמרים ב-UTC. שדות "date" נשמרים כתאריך בלבד (לפי שעון ישראל).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  CLINIC_MANAGER
+  CLIENT
+}
+
+enum ClinicCategory {
+  DENTAL
+  GENERAL_MEDICINE
+  PHYSIOTHERAPY
+  CONSULTING
+  OTHER
+}
+
+enum AppointmentStatus {
+  BOOKED
+  ARRIVED
+  IN_PROGRESS
+  COMPLETED
+  NO_SHOW
+  CANCELLED_BY_CLIENT
+  CANCELLED_BY_CLINIC
+}
+
+enum AppointmentSource {
+  ONLINE
+  CLINIC
+  IMPORT
+}
+
+enum QueueDayStatus {
+  OPEN
+  PAUSED
+  CLOSED
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// משתמשים: מנהל על, מנהל קליניקה (צוות) ולקוחות
+model User {
+  id                   Int      @id @default(autoincrement())
+  role                 Role
+  fullName             String   @db.VarChar(100)
+  /// חובה לכל מי שמתחבר. לקוח שנוסף טלפונית יכול להיות בלי מייל
+  email                String?  @unique @db.VarChar(254)
+  phone                String   @db.VarChar(20)
+  /// תעודת זהות - חובה ללקוח
+  nationalId           String?  @unique @db.Char(9)
+  /// ריק = לקוח שנוסף על ידי הקליניקה ועדיין לא נרשם
+  passwordHash         String?
+  defaultTravelMinutes Int      @default(30)
+  mustChangePassword   Boolean  @default(false)
+  isActive             Boolean  @default(true)
+  /// רק למנהל קליניקה
+  clinicId             Int?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  clinic             Clinic?             @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  appointments       Appointment[]
+  passwordResetCodes PasswordResetCode[]
+
+  @@index([clinicId])
+  @@index([role])
+}
+
+/// קודי שחזור סיסמה (נשמרים כ-Hash בלבד)
+model PasswordResetCode {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// קליניקות
+model Clinic {
+  id                               Int            @id @default(autoincrement())
+  name                             String         @db.VarChar(100)
+  category                         ClinicCategory
+  city                             String         @db.VarChar(60)
+  address                          String         @db.VarChar(200)
+  phone                            String         @db.VarChar(20)
+  description                      String?        @db.VarChar(1000)
+  isActive                         Boolean        @default(true)
+  /// עד כמה שעות לפני התור מותר לשנות/לבטל בלי סימון "ביטול מאוחר"
+  changeDeadlineHours              Int            @default(2)
+  /// כמה תורים עתידיים מותרים ללקוח אצל אותו איש מקצוע
+  maxFutureAppointmentsPerProvider Int            @default(2)
+  /// כמה ימים קדימה אפשר לקבוע תור
+  bookingHorizonDays               Int            @default(180)
+  createdAt                        DateTime       @default(now())
+  updatedAt                        DateTime       @updatedAt
+
+  providers   Provider[]
+  staff       User[]
+  joinRequest JoinRequest?
+
+  @@index([category])
+  @@index([city])
+}
+
+/// אנשי מקצוע (רופאים) - אינם מתחברים למערכת
+model Provider {
+  id          Int      @id @default(autoincrement())
+  clinicId    Int
+  fullName    String   @db.VarChar(100)
+  specialty   String?  @db.VarChar(100)
+  /// משך תור משוער בדקות
+  slotMinutes Int      @default(10)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  clinic       Clinic            @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  workingHours WorkingHours[]
+  absences     ProviderAbsence[]
+  queueDays    QueueDay[]
+  appointments Appointment[]
+
+  @@index([clinicId])
+}
+
+/// שעות פעילות שבועיות. dayOfWeek: 0=ראשון ... 6=שבת. שעות בפורמט HH:MM לפי שעון ישראל
+model WorkingHours {
+  id         Int    @id @default(autoincrement())
+  providerId Int
+  dayOfWeek  Int
+  startTime  String @db.VarChar(5)
+  endTime    String @db.VarChar(5)
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, dayOfWeek, startTime])
+}
+
+/// היעדרות של יום שלם
+model ProviderAbsence {
+  id         Int      @id @default(autoincrement())
+  providerId Int
+  date       DateTime @db.Date
+  reason     String?  @db.VarChar(200)
+  createdAt  DateTime @default(now())
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, date])
+}
+
+/// תורים - האובייקט המרכזי
+model Appointment {
+  id                 Int               @id @default(autoincrement())
+  providerId         Int
+  clientId           Int
+  startTime          DateTime
+  endTime            DateTime
+  status             AppointmentStatus @default(BOOKED)
+  /// מספר בתור היומי - נקבע בפתיחת היום
+  queueNumber        Int?
+  source             AppointmentSource @default(ONLINE)
+  notes              String?           @db.VarChar(500)
+  reminderEnabled    Boolean           @default(false)
+  /// אם ריק - נלקח זמן ההגעה של הלקוח מהפרופיל
+  travelMinutes      Int?
+  reminderSentAt     DateTime?
+  isLateCancellation Boolean           @default(false)
+  arrivedAt          DateTime?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  cancelledAt        DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  client   User     @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  @@index([providerId, startTime])
+  @@index([clientId, startTime])
+  @@index([status])
+}
+
+/// מצב יום התור החי של איש מקצוע
+model QueueDay {
+  id         Int            @id @default(autoincrement())
+  providerId Int
+  date       DateTime       @db.Date
+  status     QueueDayStatus @default(OPEN)
+  openedAt   DateTime?
+  closedAt   DateTime?
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, date])
+}
+
+/// פניות הצטרפות של קליניקות
+model JoinRequest {
+  id           Int               @id @default(autoincrement())
+  clinicName   String            @db.VarChar(100)
+  category     ClinicCategory
+  city         String            @db.VarChar(60)
+  contactName  String            @db.VarChar(100)
+  email        String            @db.VarChar(254)
+  phone        String            @db.VarChar(20)
+  message      String?           @db.VarChar(1000)
+  status       JoinRequestStatus @default(PENDING)
+  rejectReason String?           @db.VarChar(500)
+  clinicId     Int?              @unique
+  reviewedAt   DateTime?
+  createdAt    DateTime          @default(now())
+
+  clinic Clinic? @relation(fields: [clinicId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+}

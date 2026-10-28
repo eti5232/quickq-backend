@@ -1,0 +1,5656 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "QuickQ API - מערכת תורים חכמה",
+    "version": "1.0.0",
+    "description": "Backend של QuickQ: קביעת תורים, תור חי עם הערכת זמן, תזכורות במייל וניהול קליניקות.\n\n**איך מתחברים מתוך Swagger:**\n1. פתחי `POST /api/auth/login` → Try it out → Execute\n2. העתיקי את הערך של `token` מהתשובה\n3. לחצי על כפתור **Authorize** 🔓 למעלה, הדביקי את ה-token (בלי המילה Bearer) ולחצי Authorize\n4. עכשיו אפשר לקרוא ל-Endpoints המוגנים 🔒\n\nבלי Token → 401 · Token של תפקיד לא מתאים → 403.\n\nכל הזמנים ב-API הם ISO 8601 ב-UTC (למשל `2026-11-03T14:10:00.000Z`). השדות `date`/`time` מוחזרים גם בשעון ישראל."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "השרת הנוכחי"
+    }
+  ],
+  "tags": [
+    {
+      "name": "System",
+      "description": "בריאות השרת ומשימות רקע"
+    },
+    {
+      "name": "Auth",
+      "description": "הרשמה, התחברות וסיסמאות"
+    },
+    {
+      "name": "Clinics (public)",
+      "description": "חיפוש קליניקות"
+    },
+    {
+      "name": "Booking (public)",
+      "description": "לוח שנה ושעות פנויות"
+    },
+    {
+      "name": "Live queue (public)",
+      "description": "מסך התור החי"
+    },
+    {
+      "name": "Join requests",
+      "description": "פניות הצטרפות של קליניקות"
+    },
+    {
+      "name": "Appointments (client)",
+      "description": "התורים של הלקוח"
+    },
+    {
+      "name": "Manage: clinic",
+      "description": "מנהל קליניקה - פרטים והגדרות"
+    },
+    {
+      "name": "Manage: providers",
+      "description": "מנהל קליניקה - אנשי מקצוע"
+    },
+    {
+      "name": "Manage: schedule",
+      "description": "מנהל קליניקה - שעות והיעדרויות"
+    },
+    {
+      "name": "Manage: live queue",
+      "description": "מנהל קליניקה - ניהול התור של היום"
+    },
+    {
+      "name": "Manage: appointments",
+      "description": "מנהל קליניקה - יומן תורים"
+    },
+    {
+      "name": "Manage: import",
+      "description": "מנהל קליניקה - ייבוא CSV"
+    },
+    {
+      "name": "Manage: clients & staff",
+      "description": "מנהל קליניקה - לקוחות וצוות"
+    },
+    {
+      "name": "Admin",
+      "description": "מנהל על"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "הדביקי כאן את ה-token מ-/api/auth/login"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "קוד שגיאה קבוע באנגלית (לשימוש בקוד)",
+                "example": "VALIDATION_ERROR"
+              },
+              "message": {
+                "type": "string",
+                "description": "הודעה בעברית להצגה למשתמש",
+                "example": "הנתונים שנשלחו אינם תקינים"
+              },
+              "details": {
+                "description": "פרטים נוספים (למשל רשימת שדות שגויים)",
+                "nullable": true
+              }
+            }
+          }
+        }
+      },
+      "Paginated": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {}
+          },
+          "page": {
+            "type": "integer",
+            "description": "העמוד הנוכחי"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "כמות בעמוד"
+          },
+          "total": {
+            "type": "integer",
+            "description": "סך הכל רשומות"
+          },
+          "totalPages": {
+            "type": "integer",
+            "description": "סך הכל עמודים"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "מזהה"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SUPER_ADMIN",
+              "CLINIC_MANAGER",
+              "CLIENT"
+            ]
+          },
+          "fullName": {
+            "type": "string",
+            "description": "שם מלא"
+          },
+          "email": {
+            "type": "string",
+            "description": "מייל",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "description": "טלפון"
+          },
+          "nationalId": {
+            "type": "string",
+            "description": "תעודת זהות (לקוחות בלבד)",
+            "nullable": true
+          },
+          "defaultTravelMinutes": {
+            "type": "integer",
+            "description": "זמן הגעה לקליניקה בדקות (ברירת מחדל)"
+          },
+          "mustChangePassword": {
+            "type": "boolean",
+            "description": "חייב להחליף סיסמה זמנית"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "פעיל"
+          },
+          "isRegistered": {
+            "type": "boolean",
+            "description": "האם יש למשתמש סיסמה (false = לקוח שנוסף טלפונית)"
+          },
+          "clinicId": {
+            "type": "integer",
+            "description": "הקליניקה (למנהל קליניקה)",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "נוצר"
+          }
+        },
+        "example": {
+          "id": 3,
+          "role": "CLIENT",
+          "fullName": "נועה כהן",
+          "email": "client@quickq.dev",
+          "phone": "0521111111",
+          "nationalId": "123456782",
+          "defaultTravelMinutes": 30,
+          "mustChangePassword": false,
+          "isActive": true,
+          "isRegistered": true,
+          "clinicId": null,
+          "createdAt": "2026-10-01T08:00:00.000Z"
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "JWT Access Token - יש לשלוח בכותרת Authorization: Bearer <token>"
+          },
+          "expiresIn": {
+            "type": "string",
+            "description": "תוקף ה-Token",
+            "example": "8h"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        },
+        "example": {
+          "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+          "expiresIn": "8h",
+          "user": {
+            "id": 3,
+            "role": "CLIENT",
+            "fullName": "נועה כהן",
+            "email": "client@quickq.dev",
+            "phone": "0521111111",
+            "nationalId": "123456782",
+            "defaultTravelMinutes": 30,
+            "mustChangePassword": false,
+            "isActive": true,
+            "isRegistered": true,
+            "clinicId": null,
+            "createdAt": "2026-10-01T08:00:00.000Z"
+          }
+        }
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "הודעה"
+          }
+        },
+        "example": {
+          "message": "הפעולה בוצעה בהצלחה"
+        }
+      },
+      "ClinicSettings": {
+        "type": "object",
+        "properties": {
+          "changeDeadlineHours": {
+            "type": "integer",
+            "description": "עד כמה שעות לפני התור מותר לשנות/לבטל בלי \"ביטול מאוחר\""
+          },
+          "maxFutureAppointmentsPerProvider": {
+            "type": "integer",
+            "description": "מקסימום תורים עתידיים ללקוח אצל אותו איש מקצוע"
+          },
+          "bookingHorizonDays": {
+            "type": "integer",
+            "description": "כמה ימים קדימה אפשר לקבוע"
+          }
+        }
+      },
+      "Clinic": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "מזהה"
+          },
+          "name": {
+            "type": "string",
+            "description": "שם"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "DENTAL",
+              "GENERAL_MEDICINE",
+              "PHYSIOTHERAPY",
+              "CONSULTING",
+              "OTHER"
+            ],
+            "description": "תחום: רפואת שיניים / רפואה כללית / פיזיותרפיה / ייעוץ / אחר"
+          },
+          "city": {
+            "type": "string",
+            "description": "עיר"
+          },
+          "address": {
+            "type": "string",
+            "description": "כתובת"
+          },
+          "phone": {
+            "type": "string",
+            "description": "טלפון"
+          },
+          "description": {
+            "type": "string",
+            "description": "תיאור",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "פעילה"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/ClinicSettings"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "נוצרה"
+          }
+        },
+        "example": {
+          "id": 1,
+          "name": "מרפאת שיניים \"חיוך\"",
+          "category": "DENTAL",
+          "city": "תל אביב",
+          "address": "דיזנגוף 100",
+          "phone": "035551234",
+          "description": "מרפאת שיניים משפחתית",
+          "isActive": true,
+          "settings": {
+            "changeDeadlineHours": 2,
+            "maxFutureAppointmentsPerProvider": 2,
+            "bookingHorizonDays": 180
+          },
+          "createdAt": "2026-10-01T08:00:00.000Z"
+        }
+      },
+      "ClinicListItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Clinic"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "providersCount": {
+                "type": "integer",
+                "description": "מספר אנשי מקצוע פעילים"
+              },
+              "isOpenNow": {
+                "type": "boolean",
+                "description": "פתוחה עכשיו: התור החי פתוח, או שאחד מאנשי המקצוע בשעות הפעילות שלו (ולא נעדר או נסגר להיום)"
+              },
+              "nextAvailableSlot": {
+                "type": "object",
+                "nullable": true,
+                "description": "התור הפנוי הקרוב ביותר (30 יום קדימה)",
+                "properties": {
+                  "startTime": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "זמן"
+                  },
+                  "providerId": {
+                    "type": "integer",
+                    "description": "איש מקצוע"
+                  },
+                  "providerName": {
+                    "type": "string",
+                    "description": "שם איש המקצוע"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ClinicDetails": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Clinic"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "providers": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "מזהה"
+                    },
+                    "fullName": {
+                      "type": "string",
+                      "description": "שם"
+                    },
+                    "specialty": {
+                      "type": "string",
+                      "description": "התמחות",
+                      "nullable": true
+                    },
+                    "slotMinutes": {
+                      "type": "integer",
+                      "description": "משך תור"
+                    },
+                    "todayQueueStatus": {
+                      "type": "string",
+                      "enum": [
+                        "NOT_OPENED",
+                        "OPEN",
+                        "PAUSED",
+                        "CLOSED"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Provider": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "מזהה"
+          },
+          "clinicId": {
+            "type": "integer",
+            "description": "קליניקה"
+          },
+          "fullName": {
+            "type": "string",
+            "description": "שם"
+          },
+          "specialty": {
+            "type": "string",
+            "description": "התמחות",
+            "nullable": true
+          },
+          "slotMinutes": {
+            "type": "integer",
+            "description": "משך תור משוער בדקות"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "פעיל"
+          }
+        },
+        "example": {
+          "id": 1,
+          "clinicId": 1,
+          "fullName": "ד\"ר רונית לוי",
+          "specialty": "רופאת שיניים",
+          "slotMinutes": 10,
+          "isActive": true
+        }
+      },
+      "WorkingHoursRange": {
+        "type": "object",
+        "required": [
+          "dayOfWeek",
+          "startTime",
+          "endTime"
+        ],
+        "properties": {
+          "dayOfWeek": {
+            "type": "integer",
+            "description": "0=ראשון ... 6=שבת",
+            "minimum": 0,
+            "maximum": 6
+          },
+          "startTime": {
+            "type": "string",
+            "description": "שעת התחלה HH:MM",
+            "example": "16:00"
+          },
+          "endTime": {
+            "type": "string",
+            "description": "שעת סיום HH:MM",
+            "example": "20:00"
+          }
+        }
+      },
+      "ProviderWithHours": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Provider"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "workingHours": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WorkingHoursRange"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Absence": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "מזהה"
+          },
+          "providerId": {
+            "type": "integer",
+            "description": "איש מקצוע"
+          },
+          "date": {
+            "type": "string",
+            "description": "תאריך YYYY-MM-DD"
+          },
+          "reason": {
+            "type": "string",
+            "description": "סיבה",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "נוצר"
+          }
+        },
+        "example": {
+          "id": 4,
+          "providerId": 1,
+          "date": "2026-11-10",
+          "reason": "כנס מקצועי",
+          "createdAt": "2026-10-20T09:00:00.000Z"
+        }
+      },
+      "DaySlots": {
+        "type": "object",
+        "properties": {
+          "providerId": {
+            "type": "integer",
+            "description": "איש מקצוע"
+          },
+          "date": {
+            "type": "string",
+            "description": "תאריך"
+          },
+          "slotMinutes": {
+            "type": "integer",
+            "description": "משך תור"
+          },
+          "isAbsent": {
+            "type": "boolean",
+            "description": "איש המקצוע נעדר ביום זה"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "time": {
+                  "type": "string",
+                  "description": "שעה מקומית HH:MM"
+                },
+                "startTime": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "זמן מלא (לשליחה בקביעת תור)"
+                }
+              }
+            }
+          }
+        },
+        "example": {
+          "providerId": 1,
+          "date": "2026-11-03",
+          "slotMinutes": 10,
+          "isAbsent": false,
+          "slots": [
+            {
+              "time": "16:00",
+              "startTime": "2026-11-03T14:00:00.000Z"
+            },
+            {
+              "time": "16:20",
+              "startTime": "2026-11-03T14:20:00.000Z"
+            }
+          ]
+        }
+      },
+      "MonthAvailability": {
+        "type": "object",
+        "properties": {
+          "providerId": {
+            "type": "integer",
+            "description": "איש מקצוע"
+          },
+          "month": {
+            "type": "string",
+            "description": "חודש YYYY-MM"
+          },
+          "slotMinutes": {
+            "type": "integer",
+            "description": "משך תור"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "description": "תאריך"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "AVAILABLE",
+                    "FULL",
+                    "NOT_WORKING",
+                    "ABSENT",
+                    "PAST",
+                    "BEYOND_HORIZON"
+                  ],
+                  "description": "פנוי / מלא / לא עובד / היעדרות / עבר / מעבר לטווח"
+                },
+                "freeSlots": {
+                  "type": "integer",
+                  "description": "מספר משבצות פנויות"
+                }
+              }
+            }
+          }
+        },
+        "example": {
+          "providerId": 1,
+          "month": "2026-11",
+          "slotMinutes": 10,
+          "days": [
+            {
+              "date": "2026-11-01",
+              "status": "AVAILABLE",
+              "freeSlots": 17
+            },
+            {
+              "date": "2026-11-02",
+              "status": "FULL",
+              "freeSlots": 0
+            },
+            {
+              "date": "2026-11-07",
+              "status": "NOT_WORKING",
+              "freeSlots": 0
+            }
+          ]
+        }
+      },
+      "LiveStatus": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "object"
+          },
+          "clinic": {
+            "type": "object"
+          },
+          "date": {
+            "type": "string",
+            "description": "התאריך של היום"
+          },
+          "dayStatus": {
+            "type": "string",
+            "enum": [
+              "NO_SERVICE_TODAY",
+              "NOT_OPENED",
+              "OPEN",
+              "PAUSED",
+              "CLOSED"
+            ],
+            "description": "אין קבלה היום / עוד לא נפתח / פתוח / בהפסקה / נסגר"
+          },
+          "plannedOpenTime": {
+            "type": "string",
+            "description": "שעת פתיחה מתוכננת",
+            "nullable": true
+          },
+          "currentQueueNumber": {
+            "type": "integer",
+            "description": "המספר שבטיפול עכשיו",
+            "nullable": true
+          },
+          "delayMinutes": {
+            "type": "integer",
+            "description": "עיכוב נוכחי בדקות"
+          },
+          "averageMinutesPerClient": {
+            "type": "integer",
+            "description": "קצב ממוצע אמיתי היום (דקות ללקוח)"
+          },
+          "pace": {
+            "type": "string",
+            "enum": [
+              "FASTER",
+              "ON_TIME",
+              "SLOWER"
+            ],
+            "description": "מהר מהצפוי / בזמן / לאט מהצפוי"
+          },
+          "completedCount": {
+            "type": "integer",
+            "description": "טופלו היום"
+          },
+          "noShowCount": {
+            "type": "integer",
+            "description": "לא הגיעו"
+          },
+          "waitingCount": {
+            "type": "integer",
+            "description": "ממתינים"
+          },
+          "totalToday": {
+            "type": "integer",
+            "description": "סך התורים היום"
+          },
+          "progressPercent": {
+            "type": "integer",
+            "description": "אחוז התקדמות היום"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "זמן החישוב"
+          },
+          "myAppointment": {
+            "type": "object",
+            "nullable": true,
+            "description": "רק ללקוח מחובר שיש לו תור היום אצל איש מקצוע זה",
+            "properties": {
+              "appointmentId": {
+                "type": "integer",
+                "description": "מזהה התור"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "BOOKED",
+                  "ARRIVED",
+                  "IN_PROGRESS",
+                  "COMPLETED",
+                  "NO_SHOW",
+                  "CANCELLED_BY_CLIENT",
+                  "CANCELLED_BY_CLINIC"
+                ],
+                "description": "נקבע / הגיע / בטיפול / הסתיים / לא הגיע / בוטל ע\"י הלקוח / בוטל ע\"י הקליניקה"
+              },
+              "queueNumber": {
+                "type": "integer",
+                "description": "המספר שלי",
+                "nullable": true
+              },
+              "peopleAhead": {
+                "type": "integer",
+                "description": "כמה לפניי"
+              },
+              "scheduledTime": {
+                "type": "string",
+                "format": "date-time",
+                "description": "השעה המקורית"
+              },
+              "estimatedTime": {
+                "type": "string",
+                "format": "date-time",
+                "description": "השעה המשוערת"
+              },
+              "minutesUntilTurn": {
+                "type": "integer",
+                "description": "דקות עד התור"
+              },
+              "travelMinutes": {
+                "type": "integer",
+                "description": "זמן הגעה"
+              },
+              "leaveHomeAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "מתי לצאת מהבית"
+              },
+              "reminderEnabled": {
+                "type": "boolean",
+                "description": "תזכורת במייל פעילה"
+              }
+            }
+          }
+        },
+        "example": {
+          "provider": {
+            "id": 1,
+            "fullName": "ד\"ר רונית לוי",
+            "specialty": "רופאת שיניים",
+            "slotMinutes": 10
+          },
+          "clinic": {
+            "id": 1,
+            "name": "מרפאת שיניים \"חיוך\"",
+            "address": "דיזנגוף 100",
+            "city": "תל אביב"
+          },
+          "date": "2026-11-03",
+          "dayStatus": "OPEN",
+          "plannedOpenTime": "16:00",
+          "currentQueueNumber": 12,
+          "delayMinutes": 35,
+          "averageMinutesPerClient": 14,
+          "pace": "SLOWER",
+          "completedCount": 11,
+          "noShowCount": 0,
+          "waitingCount": 9,
+          "totalToday": 21,
+          "progressPercent": 52,
+          "updatedAt": "2026-11-03T14:42:10.000Z",
+          "myAppointment": {
+            "appointmentId": 87,
+            "status": "BOOKED",
+            "queueNumber": 18,
+            "peopleAhead": 5,
+            "scheduledTime": "2026-11-03T15:05:00.000Z",
+            "estimatedTime": "2026-11-03T15:40:00.000Z",
+            "minutesUntilTurn": 58,
+            "travelMinutes": 30,
+            "leaveHomeAt": "2026-11-03T15:10:00.000Z",
+            "reminderEnabled": true
+          }
+        }
+      },
+      "Appointment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "מזהה"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "BOOKED",
+              "ARRIVED",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "NO_SHOW",
+              "CANCELLED_BY_CLIENT",
+              "CANCELLED_BY_CLINIC"
+            ],
+            "description": "נקבע / הגיע / בטיפול / הסתיים / לא הגיע / בוטל ע\"י הלקוח / בוטל ע\"י הקליניקה"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "תחילת התור (UTC)"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "סוף התור (UTC)"
+          },
+          "date": {
+            "type": "string",
+            "description": "תאריך מקומי"
+          },
+          "time": {
+            "type": "string",
+            "description": "שעה מקומית"
+          },
+          "queueNumber": {
+            "type": "integer",
+            "description": "מספר בתור היומי (נקבע בפתיחת היום)",
+            "nullable": true
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "ONLINE",
+              "CLINIC",
+              "IMPORT"
+            ],
+            "description": "נקבע באתר / ע\"י הקליניקה / ייבוא"
+          },
+          "notes": {
+            "type": "string",
+            "description": "הערה",
+            "nullable": true
+          },
+          "reminderEnabled": {
+            "type": "boolean",
+            "description": "תזכורת במייל"
+          },
+          "travelMinutes": {
+            "type": "integer",
+            "description": "זמן הגעה לתור זה (null = לפי הפרופיל)",
+            "nullable": true
+          },
+          "effectiveTravelMinutes": {
+            "type": "integer",
+            "description": "זמן ההגעה בפועל לחישוב"
+          },
+          "reminderSentAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "מתי נשלחה תזכורת",
+            "nullable": true
+          },
+          "isLateCancellation": {
+            "type": "boolean",
+            "description": "ביטול מאוחר"
+          },
+          "arrivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "הגיע",
+            "nullable": true
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "נכנס לטיפול",
+            "nullable": true
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "סיים",
+            "nullable": true
+          },
+          "cancelledAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "בוטל",
+            "nullable": true
+          },
+          "changeDeadline": {
+            "type": "string",
+            "format": "date-time",
+            "description": "עד מתי מותר לשנות בלי \"ביטול מאוחר\""
+          },
+          "canReschedule": {
+            "type": "boolean",
+            "description": "אפשר לשנות שעה עכשיו"
+          },
+          "canCancel": {
+            "type": "boolean",
+            "description": "אפשר לבטל"
+          },
+          "cancellationWouldBeLate": {
+            "type": "boolean",
+            "description": "ביטול עכשיו ייחשב מאוחר"
+          },
+          "provider": {
+            "type": "object"
+          },
+          "clinic": {
+            "type": "object"
+          },
+          "client": {
+            "type": "object",
+            "description": "רק למנהל קליניקה / מנהל על",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "נוצר"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "עודכן"
+          }
+        },
+        "example": {
+          "id": 87,
+          "status": "BOOKED",
+          "startTime": "2026-11-03T14:10:00.000Z",
+          "endTime": "2026-11-03T14:20:00.000Z",
+          "date": "2026-11-03",
+          "time": "16:10",
+          "queueNumber": null,
+          "source": "ONLINE",
+          "notes": "כאב בשן שמאלית",
+          "reminderEnabled": true,
+          "travelMinutes": 30,
+          "effectiveTravelMinutes": 30,
+          "reminderSentAt": null,
+          "isLateCancellation": false,
+          "arrivedAt": null,
+          "startedAt": null,
+          "completedAt": null,
+          "cancelledAt": null,
+          "changeDeadline": "2026-11-03T12:10:00.000Z",
+          "canReschedule": true,
+          "canCancel": true,
+          "cancellationWouldBeLate": false,
+          "provider": {
+            "id": 1,
+            "fullName": "ד\"ר רונית לוי",
+            "specialty": "רופאת שיניים",
+            "slotMinutes": 10
+          },
+          "clinic": {
+            "id": 1,
+            "name": "מרפאת שיניים \"חיוך\"",
+            "city": "תל אביב",
+            "address": "דיזנגוף 100",
+            "phone": "035551234"
+          },
+          "createdAt": "2026-10-20T09:00:00.000Z",
+          "updatedAt": "2026-10-20T09:00:00.000Z"
+        }
+      },
+      "ManagerQueue": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "object"
+          },
+          "date": {
+            "type": "string",
+            "description": "תאריך"
+          },
+          "dayStatus": {
+            "type": "string",
+            "enum": [
+              "NOT_OPENED",
+              "OPEN",
+              "PAUSED",
+              "CLOSED"
+            ]
+          },
+          "openedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "נפתח",
+            "nullable": true
+          },
+          "averageMinutesPerClient": {
+            "type": "integer",
+            "description": "קצב ממוצע"
+          },
+          "currentAppointmentId": {
+            "type": "integer",
+            "description": "התור שבטיפול",
+            "nullable": true
+          },
+          "appointments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "description": "מזהה"
+                },
+                "queueNumber": {
+                  "type": "integer",
+                  "description": "מספר",
+                  "nullable": true
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "BOOKED",
+                    "ARRIVED",
+                    "IN_PROGRESS",
+                    "COMPLETED",
+                    "NO_SHOW",
+                    "CANCELLED_BY_CLIENT",
+                    "CANCELLED_BY_CLINIC"
+                  ],
+                  "description": "נקבע / הגיע / בטיפול / הסתיים / לא הגיע / בוטל ע\"י הלקוח / בוטל ע\"י הקליניקה"
+                },
+                "startTime": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "שעה מקורית"
+                },
+                "estimatedTime": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "שעה משוערת",
+                  "nullable": true
+                },
+                "client": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "מזהה"
+                    },
+                    "fullName": {
+                      "type": "string",
+                      "description": "שם"
+                    },
+                    "phone": {
+                      "type": "string",
+                      "description": "טלפון"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "example": {
+          "provider": {
+            "id": 1,
+            "fullName": "ד\"ר רונית לוי",
+            "slotMinutes": 10
+          },
+          "date": "2026-11-03",
+          "dayStatus": "OPEN",
+          "openedAt": "2026-11-03T14:00:00.000Z",
+          "averageMinutesPerClient": 14,
+          "currentAppointmentId": 55,
+          "appointments": [
+            {
+              "id": 55,
+              "queueNumber": 5,
+              "status": "IN_PROGRESS",
+              "startTime": "2026-11-03T14:40:00.000Z",
+              "estimatedTime": null,
+              "client": {
+                "id": 9,
+                "fullName": "משה ישראלי",
+                "phone": "0537777777"
+              }
+            },
+            {
+              "id": 56,
+              "queueNumber": 6,
+              "status": "ARRIVED",
+              "startTime": "2026-11-03T14:50:00.000Z",
+              "estimatedTime": "2026-11-03T15:02:00.000Z",
+              "client": {
+                "id": 10,
+                "fullName": "רחל אדלר",
+                "phone": "0538888888"
+              }
+            }
+          ]
+        }
+      },
+      "JoinRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "מזהה"
+          },
+          "clinicName": {
+            "type": "string",
+            "description": "שם הקליניקה"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "DENTAL",
+              "GENERAL_MEDICINE",
+              "PHYSIOTHERAPY",
+              "CONSULTING",
+              "OTHER"
+            ],
+            "description": "תחום: רפואת שיניים / רפואה כללית / פיזיותרפיה / ייעוץ / אחר"
+          },
+          "city": {
+            "type": "string",
+            "description": "עיר"
+          },
+          "contactName": {
+            "type": "string",
+            "description": "איש קשר"
+          },
+          "email": {
+            "type": "string",
+            "description": "מייל"
+          },
+          "phone": {
+            "type": "string",
+            "description": "טלפון"
+          },
+          "message": {
+            "type": "string",
+            "description": "הודעה",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ]
+          },
+          "rejectReason": {
+            "type": "string",
+            "description": "סיבת דחייה",
+            "nullable": true
+          },
+          "clinicId": {
+            "type": "integer",
+            "description": "הקליניקה שנוצרה",
+            "nullable": true
+          },
+          "reviewedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "טופל",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "נשלח"
+          }
+        }
+      },
+      "ClinicWithManager": {
+        "type": "object",
+        "properties": {
+          "clinic": {
+            "$ref": "#/components/schemas/Clinic"
+          },
+          "manager": {
+            "$ref": "#/components/schemas/User"
+          },
+          "temporaryPassword": {
+            "type": "string",
+            "description": "סיסמה זמנית למנהל - מוצגת פעם אחת (נשלחת גם במייל)"
+          }
+        }
+      },
+      "ImportResult": {
+        "type": "object",
+        "properties": {
+          "totalRows": {
+            "type": "integer",
+            "description": "שורות בקובץ"
+          },
+          "imported": {
+            "type": "integer",
+            "description": "נקלטו"
+          },
+          "failed": {
+            "type": "integer",
+            "description": "נכשלו"
+          },
+          "createdClients": {
+            "type": "integer",
+            "description": "לקוחות חדשים שנוצרו"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "row": {
+                  "type": "integer",
+                  "description": "מספר שורה בקובץ"
+                },
+                "message": {
+                  "type": "string",
+                  "description": "סיבה"
+                }
+              }
+            }
+          }
+        },
+        "example": {
+          "totalRows": 145,
+          "imported": 142,
+          "failed": 3,
+          "createdClients": 87,
+          "errors": [
+            {
+              "row": 17,
+              "message": "איש מקצוע לא קיים בקליניקה: \"ד\"ר שגוי\""
+            }
+          ]
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "נתונים לא תקינים (400)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "הנתונים שנשלחו אינם תקינים",
+                "details": [
+                  {
+                    "field": "email",
+                    "message": "כתובת מייל לא תקינה"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "לא מחובר / Token חסר, לא תקין או שפג תוקפו (401)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "UNAUTHORIZED",
+                "message": "נדרשת התחברות (Bearer Token)"
+              }
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "אין הרשאה לפעולה (403)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "FORBIDDEN",
+                "message": "אין לך הרשאה לבצע פעולה זו"
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "לא נמצא (או שייך לקליניקה/משתמש אחר) (404)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "NOT_FOUND",
+                "message": "הרשומה לא נמצאה"
+              }
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "התנגשות - למשל שעה תפוסה או מייל קיים (409)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "SLOT_TAKEN",
+                "message": "השעה כבר תפוסה"
+              }
+            }
+          }
+        }
+      },
+      "TooManyRequests": {
+        "description": "יותר מדי בקשות (429)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "TOO_MANY_REQUESTS",
+                "message": "יותר מדי ניסיונות התחברות. נסי שוב בעוד 15 דקות"
+              }
+            }
+          }
+        }
+      },
+      "ServiceUnavailable": {
+        "description": "השירות לא זמין (503)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "JOBS_DISABLED",
+                "message": "המשימה כבויה: לא הוגדר CRON_SECRET בשרת"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "בדיקת חיים לשרת ולמסד הנתונים",
+        "description": "🔓 **ציבורי** - ללא התחברות",
+        "responses": {
+          "200": {
+            "description": "השרת פעיל",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "ok",
+                  "database": "ok",
+                  "uptimeSeconds": 120,
+                  "time": "2026-11-03T14:00:00.000Z"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "הרשמת לקוח חדש",
+        "description": "🔓 **ציבורי** - ללא התחברות\n\nיוצר חשבון לקוח ומחזיר Token. אם קיים לקוח שנוסף טלפונית עם אותה תעודת זהות **ואותו טלפון** - החשבון \"נתבע\" והתורים הקיימים מתחברים אליו (claimedExistingClient=true).\n\nסיסמה: לפחות 8 תווים, אות באנגלית וספרה.",
+        "responses": {
+          "201": {
+            "description": "נרשם בהצלחה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/AuthResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "claimedExistingClient": {
+                          "type": "boolean",
+                          "description": "חשבון קיים נתבע"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "fullName",
+                  "email",
+                  "phone",
+                  "nationalId",
+                  "password"
+                ],
+                "properties": {
+                  "fullName": {
+                    "type": "string",
+                    "description": "שם מלא"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "מייל"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "description": "טלפון"
+                  },
+                  "nationalId": {
+                    "type": "string",
+                    "description": "תעודת זהות (9 ספרות עם ספרת ביקורת)"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "סיסמה"
+                  },
+                  "defaultTravelMinutes": {
+                    "type": "integer",
+                    "description": "זמן הגעה לקליניקה בדקות (לא חובה, ברירת מחדל 30)"
+                  }
+                }
+              },
+              "example": {
+                "fullName": "ישראל ישראלי",
+                "email": "israel@example.com",
+                "phone": "0501234567",
+                "nationalId": "123456782",
+                "password": "Secret123",
+                "defaultTravelMinutes": 25
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "התחברות - מחזיר JWT",
+        "description": "🔓 **ציבורי** - ללא התחברות\n\nאחרי ההתחברות: העתיקי את ה-token, לחצי על **Authorize** למעלה והדביקי אותו.\n\nחשבונות הדגמה (Seed בפיתוח בלבד): admin@quickq.dev / Admin123!, manager@quickq.dev / Manager123!, client@quickq.dev / Client123!",
+        "responses": {
+          "200": {
+            "description": "התחברות הצליחה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "description": "מייל"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "סיסמה"
+                  }
+                }
+              },
+              "example": {
+                "email": "client@quickq.dev",
+                "password": "Client123!"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "הפרטים שלי",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל על (SUPER_ADMIN), מנהל קליניקה (CLINIC_MANAGER), לקוח (CLIENT)\n\nעובד גם כשהמשתמש עוד חייב להחליף סיסמה זמנית.",
+        "responses": {
+          "200": {
+            "description": "פרטי המשתמש המחובר",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/User"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "clinic": {
+                          "type": "object",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "עדכון הפרטים שלי (שם, טלפון, זמן הגעה)",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל על (SUPER_ADMIN), מנהל קליניקה (CLINIC_MANAGER), לקוח (CLIENT)",
+        "responses": {
+          "200": {
+            "description": "עודכן",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fullName": {
+                    "type": "string",
+                    "description": "שם מלא"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "description": "טלפון"
+                  },
+                  "defaultTravelMinutes": {
+                    "type": "integer",
+                    "description": "זמן הגעה בדקות (0-300)"
+                  }
+                }
+              },
+              "example": {
+                "defaultTravelMinutes": 45
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/change-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "החלפת סיסמה (כולל החלפת סיסמה זמנית בכניסה ראשונה)",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל על (SUPER_ADMIN), מנהל קליניקה (CLINIC_MANAGER), לקוח (CLIENT)",
+        "responses": {
+          "200": {
+            "description": "הוחלפה. מוחזר גם Token חדש",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Message"
+                    },
+                    {
+                      "$ref": "#/components/schemas/AuthResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "currentPassword",
+                  "newPassword"
+                ],
+                "properties": {
+                  "currentPassword": {
+                    "type": "string",
+                    "description": "סיסמה נוכחית"
+                  },
+                  "newPassword": {
+                    "type": "string",
+                    "description": "סיסמה חדשה"
+                  }
+                }
+              },
+              "example": {
+                "currentPassword": "TempPass12",
+                "newPassword": "MyNewPass123"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/forgot-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "שכחתי סיסמה - שליחת קוד בן 6 ספרות למייל",
+        "description": "🔓 **ציבורי** - ללא התחברות\n\nתמיד מחזיר אותה תשובה (כדי לא לחשוף אילו מיילים רשומים). הקוד תקף ל-15 דקות.",
+        "responses": {
+          "200": {
+            "description": "בקשה התקבלה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "description": "מייל"
+                  }
+                }
+              },
+              "example": {
+                "email": "client@quickq.dev"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/reset-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "איפוס סיסמה עם הקוד מהמייל",
+        "description": "🔓 **ציבורי** - ללא התחברות\n\nעד 5 ניסיונות לכל קוד.",
+        "responses": {
+          "200": {
+            "description": "הסיסמה עודכנה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "code",
+                  "newPassword"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "description": "מייל"
+                  },
+                  "code": {
+                    "type": "string",
+                    "description": "קוד 6 ספרות"
+                  },
+                  "newPassword": {
+                    "type": "string",
+                    "description": "סיסמה חדשה"
+                  }
+                }
+              },
+              "example": {
+                "email": "client@quickq.dev",
+                "code": "482915",
+                "newPassword": "MyNewPass123"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/clinics": {
+      "get": {
+        "tags": [
+          "Clinics (public)"
+        ],
+        "summary": "חיפוש קליניקות עם סינון ומיון",
+        "description": "🔓 **ציבורי** - ללא התחברות",
+        "responses": {
+          "200": {
+            "description": "רשימת קליניקות",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Paginated"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/ClinicListItem"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        },
+        "security": [],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "חיפוש לפי שם קליניקה או שם איש מקצוע",
+            "schema": {
+              "type": "string"
+            },
+            "example": "לוי",
+            "required": false
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "description": "סינון לפי תחום",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DENTAL",
+                "GENERAL_MEDICINE",
+                "PHYSIOTHERAPY",
+                "CONSULTING",
+                "OTHER"
+              ],
+              "description": "תחום: רפואת שיניים / רפואה כללית / פיזיותרפיה / ייעוץ / אחר"
+            },
+            "required": false
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "description": "סינון לפי עיר",
+            "schema": {
+              "type": "string"
+            },
+            "example": "תל אביב",
+            "required": false
+          },
+          {
+            "name": "openNow",
+            "in": "query",
+            "description": "רק קליניקות פתוחות עכשיו (התור החי פתוח או בתוך שעות הפעילות)",
+            "schema": {
+              "type": "boolean"
+            },
+            "required": false
+          },
+          {
+            "name": "hasAvailabilityThisWeek",
+            "in": "query",
+            "description": "רק קליניקות עם תור פנוי ב-7 הימים הקרובים",
+            "schema": {
+              "type": "boolean"
+            },
+            "required": false
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "מיון: לפי שם או לפי התור הפנוי הקרוב",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "name",
+                "nextAvailable"
+              ],
+              "default": "name"
+            },
+            "required": false
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "מספר עמוד (מתחיל ב-1)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "כמות בעמוד (עד 100)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false
+          }
+        ]
+      }
+    },
+    "/api/clinics/cities": {
+      "get": {
+        "tags": [
+          "Clinics (public)"
+        ],
+        "summary": "רשימת הערים (לתיבת סינון)",
+        "description": "🔓 **ציבורי** - ללא התחברות",
+        "responses": {
+          "200": {
+            "description": "ערים",
+            "content": {
+              "application/json": {
+                "example": {
+                  "cities": [
+                    "ירושלים",
+                    "חיפה",
+                    "תל אביב"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/clinics/{id}": {
+      "get": {
+        "tags": [
+          "Clinics (public)"
+        ],
+        "summary": "פרטי קליניקה ורשימת אנשי המקצוע",
+        "description": "🔓 **ציבורי** - ללא התחברות",
+        "responses": {
+          "200": {
+            "description": "פרטי קליניקה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClinicDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה הקליניקה",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/api/providers/{id}/availability": {
+      "get": {
+        "tags": [
+          "Booking (public)"
+        ],
+        "summary": "זמינות לכל יום בחודש (ללוח שנה)",
+        "description": "🔓 **ציבורי** - ללא התחברות",
+        "responses": {
+          "200": {
+            "description": "זמינות",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthAvailability"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה איש המקצוע",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "description": "חודש בפורמט YYYY-MM",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-11"
+          }
+        ]
+      }
+    },
+    "/api/providers/{id}/slots": {
+      "get": {
+        "tags": [
+          "Booking (public)"
+        ],
+        "summary": "השעות הפנויות ביום מסוים",
+        "description": "🔓 **ציבורי** - ללא התחברות\n\nשלחי את startTime של המשבצת שנבחרה ל-POST /api/appointments.",
+        "responses": {
+          "200": {
+            "description": "שעות פנויות",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DaySlots"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה איש המקצוע",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "description": "תאריך YYYY-MM-DD",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-11-03"
+          }
+        ]
+      }
+    },
+    "/api/providers/{id}/live": {
+      "get": {
+        "tags": [
+          "Live queue (public)"
+        ],
+        "summary": "מצב התור החי היום",
+        "description": "🔓 **ציבורי** - Token לא חובה (אם נשלח Token של לקוח - מתווסף מידע אישי)\n\nללא שמות - רק מספרים. מומלץ לרענן כל 20-30 שניות. אם נשלח Token של לקוח עם תור היום אצל איש מקצוע זה - מתווסף myAppointment.",
+        "responses": {
+          "200": {
+            "description": "מצב התור",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה איש המקצוע",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/api/join-requests": {
+      "post": {
+        "tags": [
+          "Join requests"
+        ],
+        "summary": "שליחת פניית הצטרפות של קליניקה",
+        "description": "🔓 **ציבורי** - ללא התחברות",
+        "responses": {
+          "201": {
+            "description": "הפנייה התקבלה",
+            "content": {
+              "application/json": {
+                "example": {
+                  "id": 7,
+                  "status": "PENDING",
+                  "createdAt": "2026-11-03T10:00:00.000Z",
+                  "message": "הפנייה התקבלה! ניצור איתך קשר בהקדם"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "clinicName",
+                  "category",
+                  "city",
+                  "contactName",
+                  "email",
+                  "phone"
+                ],
+                "properties": {
+                  "clinicName": {
+                    "type": "string",
+                    "description": "שם הקליניקה"
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "DENTAL",
+                      "GENERAL_MEDICINE",
+                      "PHYSIOTHERAPY",
+                      "CONSULTING",
+                      "OTHER"
+                    ],
+                    "description": "תחום: רפואת שיניים / רפואה כללית / פיזיותרפיה / ייעוץ / אחר"
+                  },
+                  "city": {
+                    "type": "string",
+                    "description": "עיר"
+                  },
+                  "contactName": {
+                    "type": "string",
+                    "description": "שם איש הקשר"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "מייל"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "description": "טלפון"
+                  },
+                  "message": {
+                    "type": "string",
+                    "description": "הודעה (לא חובה)"
+                  }
+                }
+              },
+              "example": {
+                "clinicName": "קליניקת שקט",
+                "category": "CONSULTING",
+                "city": "רחובות",
+                "contactName": "הדס לוין",
+                "email": "hadas@example.com",
+                "phone": "0541112233",
+                "message": "נשמח להצטרף"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/appointments/my": {
+      "get": {
+        "tags": [
+          "Appointments (client)"
+        ],
+        "summary": "התורים שלי",
+        "description": "🔒 **דורש Token** · הרשאה: לקוח (CLIENT)",
+        "responses": {
+          "200": {
+            "description": "רשימת התורים",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Paginated"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Appointment"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "upcoming=עתידיים, past=עבר, cancelled=בוטלו, all=הכל",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "upcoming",
+                "past",
+                "cancelled",
+                "all"
+              ],
+              "default": "upcoming"
+            },
+            "required": false
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "מתאריך YYYY-MM-DD",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "עד תאריך YYYY-MM-DD",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "מספר עמוד (מתחיל ב-1)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "כמות בעמוד (עד 100)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false
+          }
+        ]
+      }
+    },
+    "/api/appointments": {
+      "post": {
+        "tags": [
+          "Appointments (client)"
+        ],
+        "summary": "קביעת תור",
+        "description": "🔒 **דורש Token** · הרשאה: לקוח (CLIENT)\n\nהלקוח נקבע לפי ה-Token (לא נשלח clientId). השעה חייבת להיות משבצת פנויה (מ-/slots).\n\nשגיאות 409 אפשריות: SLOT_TAKEN, CLIENT_OVERLAP, MAX_FUTURE_APPOINTMENTS, PROVIDER_ABSENT, PROVIDER_INACTIVE.",
+        "responses": {
+          "201": {
+            "description": "התור נקבע",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Appointment"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "providerId",
+                  "startTime"
+                ],
+                "properties": {
+                  "providerId": {
+                    "type": "integer",
+                    "description": "איש מקצוע"
+                  },
+                  "startTime": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "זמן המשבצת (startTime מ-/slots)"
+                  },
+                  "reminderEnabled": {
+                    "type": "boolean",
+                    "description": "לשלוח תזכורת במייל כשצריך לצאת"
+                  },
+                  "travelMinutes": {
+                    "type": "integer",
+                    "description": "זמן הגעה לתור זה (לא חובה)",
+                    "nullable": true
+                  },
+                  "notes": {
+                    "type": "string",
+                    "description": "הערה (עד 500 תווים)",
+                    "nullable": true
+                  }
+                }
+              },
+              "example": {
+                "providerId": 1,
+                "startTime": "2026-11-03T14:10:00.000Z",
+                "reminderEnabled": true,
+                "travelMinutes": 30,
+                "notes": "כאב בשן שמאלית"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/appointments/{id}": {
+      "get": {
+        "tags": [
+          "Appointments (client)"
+        ],
+        "summary": "פרטי תור",
+        "description": "🔒 **דורש Token** · הרשאה: לקוח (CLIENT), מנהל קליניקה (CLINIC_MANAGER), מנהל על (SUPER_ADMIN)\n\nלקוח רואה רק תורים שלו; מנהל קליניקה רק תורים של הקליניקה שלו (אחרת 404).",
+        "responses": {
+          "200": {
+            "description": "התור",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Appointment"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה התור",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Appointments (client)"
+        ],
+        "summary": "עדכון תור: שינוי שעה, תזכורת, זמן הגעה, הערה",
+        "description": "🔒 **דורש Token** · הרשאה: לקוח (CLIENT)\n\nשינוי שעה - רק אצל אותו איש מקצוע, ורק עד changeDeadlineHours לפני התור (אחרת 409 CHANGE_DEADLINE_PASSED).",
+        "responses": {
+          "200": {
+            "description": "עודכן",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Appointment"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה התור",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "startTime": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "שעה חדשה (משבצת פנויה)"
+                  },
+                  "reminderEnabled": {
+                    "type": "boolean",
+                    "description": "תזכורת"
+                  },
+                  "travelMinutes": {
+                    "type": "integer",
+                    "description": "זמן הגעה (null = לפי הפרופיל)",
+                    "nullable": true
+                  },
+                  "notes": {
+                    "type": "string",
+                    "description": "הערה",
+                    "nullable": true
+                  }
+                }
+              },
+              "example": {
+                "startTime": "2026-11-03T14:30:00.000Z",
+                "reminderEnabled": true,
+                "travelMinutes": 45
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/appointments/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Appointments (client)"
+        ],
+        "summary": "ביטול תור",
+        "description": "🔒 **דורש Token** · הרשאה: לקוח (CLIENT), מנהל קליניקה (CLINIC_MANAGER)\n\nלקוח: ביטול אחרי המועד שהקליניקה קבעה מסומן isLateCancellation=true. מנהל קליניקה: הלקוח מקבל מייל.",
+        "responses": {
+          "200": {
+            "description": "בוטל",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Appointment"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה התור",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "description": "סיבה (לא חובה)"
+                  }
+                }
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/api/manage/clinic": {
+      "get": {
+        "tags": [
+          "Manage: clinic"
+        ],
+        "summary": "פרטי הקליניקה שלי",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)",
+        "responses": {
+          "200": {
+            "description": "הקליניקה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Clinic"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Manage: clinic"
+        ],
+        "summary": "עדכון פרטים והגדרות הקליניקה",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)",
+        "responses": {
+          "200": {
+            "description": "עודכן",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Clinic"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "שם"
+                  },
+                  "city": {
+                    "type": "string",
+                    "description": "עיר"
+                  },
+                  "address": {
+                    "type": "string",
+                    "description": "כתובת"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "description": "טלפון"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "תיאור",
+                    "nullable": true
+                  },
+                  "changeDeadlineHours": {
+                    "type": "integer",
+                    "description": "0-168"
+                  },
+                  "maxFutureAppointmentsPerProvider": {
+                    "type": "integer",
+                    "description": "1-20"
+                  },
+                  "bookingHorizonDays": {
+                    "type": "integer",
+                    "description": "1-365"
+                  }
+                }
+              },
+              "example": {
+                "changeDeadlineHours": 24,
+                "maxFutureAppointmentsPerProvider": 2,
+                "bookingHorizonDays": 180
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage/providers": {
+      "get": {
+        "tags": [
+          "Manage: providers"
+        ],
+        "summary": "אנשי המקצוע בקליניקה (כולל שעות)",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)",
+        "responses": {
+          "200": {
+            "description": "רשימה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProviderWithHours"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Manage: providers"
+        ],
+        "summary": "הוספת איש מקצוע",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)",
+        "responses": {
+          "201": {
+            "description": "נוצר",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Provider"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "fullName"
+                ],
+                "properties": {
+                  "fullName": {
+                    "type": "string",
+                    "description": "שם"
+                  },
+                  "specialty": {
+                    "type": "string",
+                    "description": "התמחות",
+                    "nullable": true
+                  },
+                  "slotMinutes": {
+                    "type": "integer",
+                    "description": "משך תור 5-120 (ברירת מחדל 10)"
+                  }
+                }
+              },
+              "example": {
+                "fullName": "ד\"ר שירה אלון",
+                "specialty": "רופאת ילדים",
+                "slotMinutes": 15
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage/providers/{id}": {
+      "patch": {
+        "tags": [
+          "Manage: providers"
+        ],
+        "summary": "עריכה / השבתה של איש מקצוע",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)\n\nהשבתה כשיש תורים עתידיים מחזירה 409 HAS_FUTURE_APPOINTMENTS, אלא אם נשלח cancelFutureAppointments=true (אז התורים מבוטלים והלקוחות מקבלים מייל).",
+        "responses": {
+          "200": {
+            "description": "עודכן",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Provider"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "cancelledAppointments": {
+                          "type": "integer",
+                          "description": "תורים שבוטלו"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה איש המקצוע",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fullName": {
+                    "type": "string",
+                    "description": "שם"
+                  },
+                  "specialty": {
+                    "type": "string",
+                    "description": "התמחות",
+                    "nullable": true
+                  },
+                  "slotMinutes": {
+                    "type": "integer",
+                    "description": "משך תור"
+                  },
+                  "isActive": {
+                    "type": "boolean",
+                    "description": "פעיל"
+                  },
+                  "cancelFutureAppointments": {
+                    "type": "boolean",
+                    "description": "לבטל תורים עתידיים בהשבתה"
+                  }
+                }
+              },
+              "example": {
+                "slotMinutes": 15
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage/providers/{id}/working-hours": {
+      "get": {
+        "tags": [
+          "Manage: schedule"
+        ],
+        "summary": "שעות הפעילות השבועיות",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)",
+        "responses": {
+          "200": {
+            "description": "שעות",
+            "content": {
+              "application/json": {
+                "example": {
+                  "providerId": 1,
+                  "hours": [
+                    {
+                      "dayOfWeek": 0,
+                      "startTime": "16:00",
+                      "endTime": "20:00"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה איש המקצוע",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Manage: schedule"
+        ],
+        "summary": "החלפה מלאה של שעות הפעילות",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)\n\nאפשר כמה טווחים ביום (בלי חפיפה). תורים קיימים לא מבוטלים - אם נשארו מחוץ לשעות, מוחזרת אזהרה (warning).",
+        "responses": {
+          "200": {
+            "description": "נשמר",
+            "content": {
+              "application/json": {
+                "example": {
+                  "providerId": 1,
+                  "hours": [
+                    {
+                      "dayOfWeek": 0,
+                      "startTime": "16:00",
+                      "endTime": "18:00"
+                    }
+                  ],
+                  "warning": {
+                    "message": "שימי לב: 2 תורים קיימים נמצאים מחוץ לשעות החדשות. הם לא בוטלו.",
+                    "appointmentIds": [
+                      41,
+                      42
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה איש המקצוע",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "hours"
+                ],
+                "properties": {
+                  "hours": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/WorkingHoursRange"
+                    }
+                  }
+                }
+              },
+              "example": {
+                "hours": [
+                  {
+                    "dayOfWeek": 0,
+                    "startTime": "16:00",
+                    "endTime": "20:00"
+                  },
+                  {
+                    "dayOfWeek": 2,
+                    "startTime": "09:00",
+                    "endTime": "13:00"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage/providers/{id}/absences": {
+      "get": {
+        "tags": [
+          "Manage: schedule"
+        ],
+        "summary": "היעדרויות עתידיות של איש מקצוע",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)",
+        "responses": {
+          "200": {
+            "description": "רשימה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Absence"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה איש המקצוע",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Manage: schedule"
+        ],
+        "summary": "הוספת היעדרות (יום שלם)",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)\n\nכל התורים באותו יום מבוטלים, והלקוחות מקבלים מייל.",
+        "responses": {
+          "201": {
+            "description": "נוספה",
+            "content": {
+              "application/json": {
+                "example": {
+                  "absence": {
+                    "id": 4,
+                    "providerId": 1,
+                    "date": "2026-11-10",
+                    "reason": "מחלה",
+                    "createdAt": "2026-11-03T08:00:00.000Z"
+                  },
+                  "cancelledAppointments": 6
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה איש המקצוע",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "date"
+                ],
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "description": "תאריך YYYY-MM-DD"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "description": "סיבה",
+                    "nullable": true
+                  }
+                }
+              },
+              "example": {
+                "date": "2026-11-10",
+                "reason": "מחלה"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage/absences": {
+      "post": {
+        "tags": [
+          "Manage: schedule"
+        ],
+        "summary": "היעדרות לכמה אנשי מקצוע / לכל הקליניקה (חג, שיפוץ)",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)\n\nבלי providerIds - חל על כל אנשי המקצוע הפעילים.",
+        "responses": {
+          "201": {
+            "description": "נוספו",
+            "content": {
+              "application/json": {
+                "example": {
+                  "absences": [],
+                  "skippedExisting": 0,
+                  "cancelledAppointments": 12
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "date"
+                ],
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "description": "תאריך"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "description": "סיבה",
+                    "nullable": true
+                  },
+                  "providerIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              },
+              "example": {
+                "date": "2026-12-25",
+                "reason": "שיפוץ"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage/absences/{id}": {
+      "delete": {
+        "tags": [
+          "Manage: schedule"
+        ],
+        "summary": "מחיקת היעדרות",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)\n\nתורים שכבר בוטלו לא חוזרים.",
+        "responses": {
+          "204": {
+            "description": "נמחקה"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה ההיעדרות",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/api/manage/providers/{id}/queue": {
+      "get": {
+        "tags": [
+          "Manage: live queue"
+        ],
+        "summary": "התור של היום (כולל שמות)",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)",
+        "responses": {
+          "200": {
+            "description": "התור",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagerQueue"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה איש המקצוע",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/api/manage/providers/{id}/queue/open": {
+      "post": {
+        "tags": [
+          "Manage: live queue"
+        ],
+        "summary": "פתיחת היום - קובע מספרי תור לפי סדר השעות",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)",
+        "responses": {
+          "200": {
+            "description": "נפתח",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagerQueue"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה איש המקצוע",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/api/manage/providers/{id}/queue/pause": {
+      "post": {
+        "tags": [
+          "Manage: live queue"
+        ],
+        "summary": "הפסקה",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)",
+        "responses": {
+          "200": {
+            "description": "בהפסקה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagerQueue"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה איש המקצוע",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/api/manage/providers/{id}/queue/resume": {
+      "post": {
+        "tags": [
+          "Manage: live queue"
+        ],
+        "summary": "המשך אחרי הפסקה",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)",
+        "responses": {
+          "200": {
+            "description": "פתוח",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagerQueue"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה איש המקצוע",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/api/manage/providers/{id}/queue/close": {
+      "post": {
+        "tags": [
+          "Manage: live queue"
+        ],
+        "summary": "סגירת היום",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)\n\nמי שבטיפול מסומן \"סיים\"; מי שלא נכנס מסומן \"לא הגיע\".",
+        "responses": {
+          "200": {
+            "description": "נסגר",
+            "content": {
+              "application/json": {
+                "example": {
+                  "markedCompleted": 1,
+                  "markedNoShow": 2,
+                  "queue": {}
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה איש המקצוע",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/api/manage/providers/{id}/queue/next": {
+      "post": {
+        "tags": [
+          "Manage: live queue"
+        ],
+        "summary": "\"הבא בתור\" - מסיים את הנוכחי ומכניס את הבא מבין אלה שסומנו \"הגיע\"",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)",
+        "responses": {
+          "200": {
+            "description": "בוצע",
+            "content": {
+              "application/json": {
+                "example": {
+                  "completedAppointmentId": 55,
+                  "startedAppointmentId": 56,
+                  "startedQueueNumber": 6,
+                  "message": "מספר 6 נכנס לטיפול",
+                  "queue": {}
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה איש המקצוע",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/api/manage/appointments": {
+      "get": {
+        "tags": [
+          "Manage: appointments"
+        ],
+        "summary": "יומן התורים של הקליניקה",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)",
+        "responses": {
+          "200": {
+            "description": "תורים",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Paginated"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Appointment"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "providerId",
+            "in": "query",
+            "description": "סינון לפי איש מקצוע",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "description": "יום מסוים YYYY-MM-DD",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "מתאריך",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "עד תאריך",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "סטטוס",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "BOOKED",
+                "ARRIVED",
+                "IN_PROGRESS",
+                "COMPLETED",
+                "NO_SHOW",
+                "CANCELLED_BY_CLIENT",
+                "CANCELLED_BY_CLINIC"
+              ],
+              "description": "נקבע / הגיע / בטיפול / הסתיים / לא הגיע / בוטל ע\"י הלקוח / בוטל ע\"י הקליניקה"
+            },
+            "required": false
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "חיפוש לקוח (שם / טלפון / ת\"ז)",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "מספר עמוד (מתחיל ב-1)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "כמות בעמוד (עד 100)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Manage: appointments"
+        ],
+        "summary": "קביעת תור עבור לקוח (טלפונית)",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)\n\nשלחי clientId של לקוח קיים, **או** client עם פרטי לקוח חדש. אם תעודת הזהות כבר קיימת - התור משויך ללקוח הקיים.",
+        "responses": {
+          "201": {
+            "description": "נקבע",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Appointment"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "clientCreated": {
+                          "type": "boolean",
+                          "description": "נוצר לקוח חדש"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "providerId",
+                  "startTime"
+                ],
+                "properties": {
+                  "providerId": {
+                    "type": "integer",
+                    "description": "איש מקצוע"
+                  },
+                  "startTime": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "זמן"
+                  },
+                  "clientId": {
+                    "type": "integer",
+                    "description": "לקוח קיים"
+                  },
+                  "client": {
+                    "type": "object",
+                    "properties": {
+                      "fullName": {
+                        "type": "string",
+                        "description": "שם"
+                      },
+                      "phone": {
+                        "type": "string",
+                        "description": "טלפון"
+                      },
+                      "nationalId": {
+                        "type": "string",
+                        "description": "ת\"ז"
+                      },
+                      "email": {
+                        "type": "string",
+                        "description": "מייל (לא חובה)"
+                      }
+                    }
+                  },
+                  "notes": {
+                    "type": "string",
+                    "description": "הערה",
+                    "nullable": true
+                  },
+                  "reminderEnabled": {
+                    "type": "boolean",
+                    "description": "תזכורת"
+                  },
+                  "travelMinutes": {
+                    "type": "integer",
+                    "description": "זמן הגעה",
+                    "nullable": true
+                  }
+                }
+              },
+              "example": {
+                "providerId": 1,
+                "startTime": "2026-11-03T14:20:00.000Z",
+                "client": {
+                  "fullName": "משה ישראלי",
+                  "phone": "0537777777",
+                  "nationalId": "000000018"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage/appointments/{id}": {
+      "patch": {
+        "tags": [
+          "Manage: appointments"
+        ],
+        "summary": "עריכת תור (שעה / הערה)",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)",
+        "responses": {
+          "200": {
+            "description": "עודכן",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Appointment"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה התור",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "startTime": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "שעה חדשה"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "description": "הערה",
+                    "nullable": true
+                  }
+                }
+              },
+              "example": {
+                "notes": "להביא צילום"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage/appointments/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Manage: appointments"
+        ],
+        "summary": "ביטול תור על ידי הקליניקה (נשלח מייל ללקוח)",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)",
+        "responses": {
+          "200": {
+            "description": "בוטל",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Appointment"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה התור",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "description": "סיבה (מופיעה במייל)"
+                  }
+                }
+              },
+              "example": {
+                "reason": "הרופא חולה"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage/appointments/{id}/status": {
+      "post": {
+        "tags": [
+          "Manage: live queue"
+        ],
+        "summary": "עדכון סטטוס בתור של היום",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)\n\nמעברים מותרים: BOOKED→ARRIVED/IN_PROGRESS/NO_SHOW · ARRIVED→IN_PROGRESS/NO_SHOW/BOOKED · IN_PROGRESS→COMPLETED/ARRIVED · COMPLETED→IN_PROGRESS · NO_SHOW→ARRIVED/BOOKED (תיקון טעויות).\nרק לקוח אחד יכול להיות בטיפול. היום חייב להיות פתוח.",
+        "responses": {
+          "200": {
+            "description": "עודכן",
+            "content": {
+              "application/json": {
+                "example": {
+                  "id": 56,
+                  "status": "ARRIVED",
+                  "queueNumber": 6,
+                  "arrivedAt": "2026-11-03T14:45:00.000Z",
+                  "startedAt": null,
+                  "completedAt": null
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה התור",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "BOOKED",
+                      "ARRIVED",
+                      "IN_PROGRESS",
+                      "COMPLETED",
+                      "NO_SHOW"
+                    ]
+                  }
+                }
+              },
+              "example": {
+                "status": "ARRIVED"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage/appointments/import": {
+      "post": {
+        "tags": [
+          "Manage: import"
+        ],
+        "summary": "ייבוא תורים מקובץ CSV",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)\n\nעמודות (כותרות בעברית או באנגלית): תאריך, שעה, רופא, שם לקוח, טלפון, תעודת זהות, מייל (לא חובה).\nתאריך: 03/11/2026 · שעה: 16:30 · שם הרופא חייב להיות זהה לשם במערכת.\nמומלץ לשמור מאקסל כ-\"CSV UTF-8\". שורות תקינות נקלטות, שגויות מדווחות.",
+        "responses": {
+          "200": {
+            "description": "סיכום הייבוא",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "קובץ CSV (עד 2MB, עד 5000 שורות)"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage/appointments/import/template": {
+      "get": {
+        "tags": [
+          "Manage: import"
+        ],
+        "summary": "הורדת קובץ CSV לדוגמה",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)",
+        "responses": {
+          "200": {
+            "description": "קובץ CSV",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/manage/clients": {
+      "get": {
+        "tags": [
+          "Manage: clients & staff"
+        ],
+        "summary": "לקוחות שיש להם תורים בקליניקה",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)",
+        "responses": {
+          "200": {
+            "description": "לקוחות",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Paginated"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "allOf": [
+                              {
+                                "$ref": "#/components/schemas/User"
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "appointmentsCount": {
+                                    "type": "integer",
+                                    "description": "תורים בקליניקה"
+                                  },
+                                  "lateCancellationCount": {
+                                    "type": "integer",
+                                    "description": "ביטולים מאוחרים"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "חיפוש: שם / טלפון / ת\"ז / מייל",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "מספר עמוד (מתחיל ב-1)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "כמות בעמוד (עד 100)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false
+          }
+        ]
+      }
+    },
+    "/api/manage/clients/{id}": {
+      "patch": {
+        "tags": [
+          "Manage: clients & staff"
+        ],
+        "summary": "עריכת לקוח שנוסף טלפונית",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)\n\nלקוח רשום (עם סיסמה) מנהל את הפרטים שלו בעצמו - 403 CLIENT_SELF_MANAGED.",
+        "responses": {
+          "200": {
+            "description": "עודכן",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה הלקוח",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fullName": {
+                    "type": "string",
+                    "description": "שם"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "description": "טלפון"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "מייל",
+                    "nullable": true
+                  },
+                  "nationalId": {
+                    "type": "string",
+                    "description": "ת\"ז"
+                  }
+                }
+              },
+              "example": {
+                "phone": "0537777778"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage/staff": {
+      "get": {
+        "tags": [
+          "Manage: clients & staff"
+        ],
+        "summary": "משתמשי הצוות של הקליניקה",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)",
+        "responses": {
+          "200": {
+            "description": "צוות",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/User"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Manage: clients & staff"
+        ],
+        "summary": "הוספת משתמש צוות (מזכירה)",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)\n\nנוצרת סיסמה זמנית שנשלחת במייל (ומוחזרת פעם אחת בתשובה).",
+        "responses": {
+          "201": {
+            "description": "נוצר",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    },
+                    "temporaryPassword": {
+                      "type": "string",
+                      "description": "סיסמה זמנית"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "fullName",
+                  "email",
+                  "phone"
+                ],
+                "properties": {
+                  "fullName": {
+                    "type": "string",
+                    "description": "שם"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "מייל"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "description": "טלפון"
+                  }
+                }
+              },
+              "example": {
+                "fullName": "רותם שלום",
+                "email": "rotem@example.com",
+                "phone": "0501000009"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage/staff/{id}": {
+      "patch": {
+        "tags": [
+          "Manage: clients & staff"
+        ],
+        "summary": "השבתה / הפעלה של משתמש צוות",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל קליניקה (CLINIC_MANAGER)",
+        "responses": {
+          "200": {
+            "description": "עודכן",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה המשתמש",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "isActive"
+                ],
+                "properties": {
+                  "isActive": {
+                    "type": "boolean",
+                    "description": "פעיל"
+                  }
+                }
+              },
+              "example": {
+                "isActive": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/join-requests": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "פניות הצטרפות",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל על (SUPER_ADMIN)",
+        "responses": {
+          "200": {
+            "description": "פניות",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Paginated"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/JoinRequest"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "סינון לפי סטטוס",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "APPROVED",
+                "REJECTED"
+              ]
+            },
+            "required": false
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "מספר עמוד (מתחיל ב-1)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "כמות בעמוד (עד 100)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false
+          }
+        ]
+      }
+    },
+    "/api/admin/join-requests/{id}/approve": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "אישור פנייה - יוצר קליניקה ומנהל אוטומטית",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל על (SUPER_ADMIN)\n\nלמנהל נשלח מייל עם סיסמה זמנית. אם המייל כבר קיים במערכת - 409 EMAIL_TAKEN, ואפשר לשלוח email אחר.",
+        "responses": {
+          "201": {
+            "description": "אושרה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ClinicWithManager"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "joinRequestId": {
+                          "type": "integer",
+                          "description": "הפנייה"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה הפנייה",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "description": "מייל חלופי למנהל (לא חובה)"
+                  }
+                }
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/join-requests/{id}/reject": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "דחיית פנייה",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל על (SUPER_ADMIN)",
+        "responses": {
+          "200": {
+            "description": "נדחתה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה הפנייה",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "description": "סיבה (לא חובה)"
+                  }
+                }
+              },
+              "example": {
+                "reason": "פרטים חסרים"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/clinics": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "כל הקליניקות (כולל מושבתות)",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל על (SUPER_ADMIN)",
+        "responses": {
+          "200": {
+            "description": "קליניקות",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Paginated"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Clinic"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "חיפוש לפי שם / עיר",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "description": "תחום",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DENTAL",
+                "GENERAL_MEDICINE",
+                "PHYSIOTHERAPY",
+                "CONSULTING",
+                "OTHER"
+              ],
+              "description": "תחום: רפואת שיניים / רפואה כללית / פיזיותרפיה / ייעוץ / אחר"
+            },
+            "required": false
+          },
+          {
+            "name": "isActive",
+            "in": "query",
+            "description": "פעילות / מושבתות",
+            "schema": {
+              "type": "boolean"
+            },
+            "required": false
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "מספר עמוד (מתחיל ב-1)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "כמות בעמוד (עד 100)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "יצירת קליניקה ידנית + מנהל",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל על (SUPER_ADMIN)",
+        "responses": {
+          "201": {
+            "description": "נוצרה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClinicWithManager"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "category",
+                  "city",
+                  "address",
+                  "phone",
+                  "manager"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "שם"
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "DENTAL",
+                      "GENERAL_MEDICINE",
+                      "PHYSIOTHERAPY",
+                      "CONSULTING",
+                      "OTHER"
+                    ],
+                    "description": "תחום: רפואת שיניים / רפואה כללית / פיזיותרפיה / ייעוץ / אחר"
+                  },
+                  "city": {
+                    "type": "string",
+                    "description": "עיר"
+                  },
+                  "address": {
+                    "type": "string",
+                    "description": "כתובת"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "description": "טלפון"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "תיאור",
+                    "nullable": true
+                  },
+                  "manager": {
+                    "type": "object",
+                    "required": [
+                      "fullName",
+                      "email",
+                      "phone"
+                    ],
+                    "properties": {
+                      "fullName": {
+                        "type": "string",
+                        "description": "שם"
+                      },
+                      "email": {
+                        "type": "string",
+                        "description": "מייל"
+                      },
+                      "phone": {
+                        "type": "string",
+                        "description": "טלפון"
+                      }
+                    }
+                  }
+                }
+              },
+              "example": {
+                "name": "מרפאת הגליל",
+                "category": "GENERAL_MEDICINE",
+                "city": "צפת",
+                "address": "ירושלים 5",
+                "phone": "046661234",
+                "manager": {
+                  "fullName": "אלון ברגר",
+                  "email": "alon@example.com",
+                  "phone": "0507778899"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/clinics/{id}": {
+      "patch": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "עריכה / השבתה / הפעלה של קליניקה",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל על (SUPER_ADMIN)\n\nהשבתה עם תורים עתידיים דורשת cancelFutureAppointments=true (אחרת 409). קליניקה מושבתת נעלמת מהחיפוש והמנהלים שלה לא יכולים להתחבר.",
+        "responses": {
+          "200": {
+            "description": "עודכנה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Clinic"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "cancelledAppointments": {
+                          "type": "integer",
+                          "description": "תורים שבוטלו"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה הקליניקה",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "שם"
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "DENTAL",
+                      "GENERAL_MEDICINE",
+                      "PHYSIOTHERAPY",
+                      "CONSULTING",
+                      "OTHER"
+                    ],
+                    "description": "תחום: רפואת שיניים / רפואה כללית / פיזיותרפיה / ייעוץ / אחר"
+                  },
+                  "city": {
+                    "type": "string",
+                    "description": "עיר"
+                  },
+                  "address": {
+                    "type": "string",
+                    "description": "כתובת"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "description": "טלפון"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "תיאור",
+                    "nullable": true
+                  },
+                  "isActive": {
+                    "type": "boolean",
+                    "description": "פעילה"
+                  },
+                  "cancelFutureAppointments": {
+                    "type": "boolean",
+                    "description": "לבטל תורים עתידיים בהשבתה"
+                  }
+                }
+              },
+              "example": {
+                "isActive": false,
+                "cancelFutureAppointments": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "כל המשתמשים",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל על (SUPER_ADMIN)",
+        "responses": {
+          "200": {
+            "description": "משתמשים",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Paginated"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/User"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "role",
+            "in": "query",
+            "description": "תפקיד",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUPER_ADMIN",
+                "CLINIC_MANAGER",
+                "CLIENT"
+              ]
+            },
+            "required": false
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "חיפוש: שם / מייל / טלפון / ת\"ז",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "isActive",
+            "in": "query",
+            "description": "פעילים / מושבתים",
+            "schema": {
+              "type": "boolean"
+            },
+            "required": false
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "מספר עמוד (מתחיל ב-1)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "כמות בעמוד (עד 100)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false
+          }
+        ]
+      }
+    },
+    "/api/admin/users/{id}": {
+      "patch": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "תיקון פרטי משתמש / השבתה",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל על (SUPER_ADMIN)\n\nלא ניתן לשנות תפקיד או סיסמה כאן, ולא ניתן להשבית את עצמך. השבתת לקוח עם תורים עתידיים דורשת cancelFutureAppointments=true.",
+        "responses": {
+          "200": {
+            "description": "עודכן",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה המשתמש",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fullName": {
+                    "type": "string",
+                    "description": "שם"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "description": "טלפון"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "מייל"
+                  },
+                  "nationalId": {
+                    "type": "string",
+                    "description": "ת\"ז (ללקוחות)"
+                  },
+                  "isActive": {
+                    "type": "boolean",
+                    "description": "פעיל"
+                  },
+                  "cancelFutureAppointments": {
+                    "type": "boolean",
+                    "description": "לבטל תורים עתידיים"
+                  }
+                }
+              },
+              "example": {
+                "email": "noa.cohen@example.com"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/{id}/reset-password": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "איפוס סיסמה למשתמש (סיסמה זמנית במייל)",
+        "description": "🔒 **דורש Token** · הרשאה: מנהל על (SUPER_ADMIN)",
+        "responses": {
+          "200": {
+            "description": "אופסה",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "הסיסמה אופסה ונשלחה במייל למשתמש",
+                  "temporaryPassword": "aB3kLm9QxP"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "מזהה המשתמש",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/api/jobs/send-reminders": {
+      "post": {
+        "tags": [
+          "System"
+        ],
+        "summary": "שליחת תזכורות (נקרא על ידי cron-job.org)",
+        "description": "🔓 **ציבורי** - ללא התחברות\n\nדורש כותרת x-cron-secret זהה למשתנה הסביבה CRON_SECRET. לא דורש JWT.",
+        "responses": {
+          "200": {
+            "description": "הבדיקה רצה",
+            "content": {
+              "application/json": {
+                "example": {
+                  "checked": 4,
+                  "sent": 1,
+                  "ranAt": "2026-11-03T14:40:00.000Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        },
+        "security": [],
+        "parameters": [
+          {
+            "name": "x-cron-secret",
+            "in": "header",
+            "required": true,
+            "description": "הסוד מ-CRON_SECRET",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
