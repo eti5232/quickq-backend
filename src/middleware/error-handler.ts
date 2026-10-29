@@ -25,7 +25,7 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     res.status(400).json({
       error: {
         code: 'VALIDATION_ERROR',
-        message: 'הנתונים שנשלחו אינם תקינים',
+        message: err.issues[0]?.message ?? 'הנתונים שנשלחו אינם תקינים',
         details: err.issues.map((i) => ({ field: i.path.join('.'), message: i.message })),
       },
     });
